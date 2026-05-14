@@ -1,26 +1,62 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, ScrollView } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, ScrollView, ActivityIndicator } from 'react-native';
 import ScoutLogo from '../components/ScoutLogo';
+import { auth } from '../../firebaseConfig';
+import { obtenerDatosUsuario, cerrarSesion } from '../services/authService';
 
-const DashboardScreen = ({ navigation }) => {
+const DashboardScreen = () => {
+  const [userData, setUserData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      if (auth.currentUser) {
+        try {
+          const data = await obtenerDatosUsuario(auth.currentUser.uid);
+          setUserData(data);
+        } catch (error) {
+          console.error("Error cargando perfil:", error);
+        }
+      }
+      setLoading(false);
+    };
+
+    fetchData();
+  }, []);
+
+  if (loading) {
+    return (
+      <View style={[styles.safeArea, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color="#00264d" />
+      </View>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.container}>
-        {/* Header con el logo */}
-        <View style={styles.header}>
-          <View style={styles.greetingContainer}>
-            <Text style={styles.greetingTitle}>Hola, Juan Carlos</Text>
-            <Text style={styles.greetingSubtitle}>Gestiona tu equipo scout de forma eficiente</Text>
-          </View>
+        <View style={styles.headerTop}>
           <ScoutLogo size={40} />
+          <TouchableOpacity onPress={cerrarSesion} style={styles.logoutButton}>
+            <Text style={styles.logoutText}>Salir</Text>
+          </TouchableOpacity>
         </View>
 
-        {/* Tarjetas de Estadísticas */}
+        <View style={styles.header}>
+          <View style={styles.greetingContainer}>
+            <Text style={styles.greetingTitle}>
+              Hola, {userData ? userData.nombre.split(' ')[0] : 'Scout'}
+            </Text>
+            <Text style={styles.greetingSubtitle}>
+              {userData ? userData.perfil : 'Cargando perfil...'}
+            </Text>
+          </View>
+        </View>
+
         <View style={styles.statsContainer}>
           <View style={styles.statCard}>
             <View style={[styles.iconContainer, { backgroundColor: '#e6f7ec' }]}>
-              {/* Aquí iría un ícono real (ej. Feather, Ionicons), usando texto por ahora */}
-              <Text style={{ fontSize: 20, color: '#00a344' }}>📦</Text> 
+              <Text style={{ fontSize: 20, color: '#00a344' }}>📦</Text>
             </View>
             <Text style={styles.statNumber}>7</Text>
             <Text style={styles.statLabel}>Equipo Disponible</Text>
@@ -34,71 +70,38 @@ const DashboardScreen = ({ navigation }) => {
             <Text style={styles.statLabel}>En Uso</Text>
           </View>
         </View>
-
-        {/* Acciones Rápidas */}
-        <View style={styles.actionsContainer}>
-          <Text style={styles.sectionTitle}>Acciones Rápidas</Text>
-          
-          <TouchableOpacity 
-            style={styles.actionButton}
-            onPress={() => navigation.navigate('Inventory')}
-          >
-            <View style={[styles.actionIconContainer, { backgroundColor: '#e6f0ff' }]}>
-              <Text style={{ color: '#0055ff' }}>📋</Text>
-            </View>
-            <Text style={styles.actionButtonText}>Ver Inventario Completo</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={styles.actionButton}
-            onPress={() => navigation.navigate('AddEquipment')}
-          >
-            <View style={[styles.actionIconContainer, { backgroundColor: '#e6f0ff' }]}>
-              <Text style={{ color: '#0055ff' }}>➕</Text>
-            </View>
-            <Text style={styles.actionButtonText}>Añadir Nuevo Equipo</Text>
-          </TouchableOpacity>
-        </View>
       </ScrollView>
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#f7f9fc',
+  safeArea: { flex: 1, backgroundColor: '#f7f9fc' },
+  container: { padding: 24 },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 20,
+    marginBottom: 10,
   },
-  container: {
-    padding: 24,
+  logoutButton: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    backgroundColor: '#ffe6e6',
+    borderRadius: 8,
   },
+  logoutText: { color: '#cc0000', fontWeight: '600', fontSize: 14 },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginTop: 20,
     marginBottom: 32,
   },
-  greetingContainer: {
-    flex: 1,
-    paddingRight: 16,
-  },
-  greetingTitle: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#00264d',
-  },
-  greetingSubtitle: {
-    fontSize: 14,
-    color: '#5c738a',
-    marginTop: 6,
-    lineHeight: 20,
-  },
-  statsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 40,
-  },
+  greetingContainer: { flex: 1, paddingRight: 16 },
+  greetingTitle: { fontSize: 28, fontWeight: '700', color: '#00264d' },
+  greetingSubtitle: { fontSize: 14, color: '#5c738a', marginTop: 6, lineHeight: 20 },
+  statsContainer: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 40 },
   statCard: {
     backgroundColor: '#ffffff',
     borderRadius: 16,
@@ -118,52 +121,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 16,
   },
-  statNumber: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: '#00264d',
-    marginBottom: 4,
-  },
-  statLabel: {
-    fontSize: 13,
-    color: '#5c738a',
-    fontWeight: '500',
-  },
-  actionsContainer: {
-    marginBottom: 20,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#00264d',
-    marginBottom: 16,
-  },
-  actionButton: {
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  actionIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 16,
-  },
-  actionButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#00264d',
-  },
+  statNumber: { fontSize: 32, fontWeight: '700', color: '#00264d', marginBottom: 4 },
+  statLabel: { fontSize: 13, color: '#5c738a', fontWeight: '500' },
 });
 
 export default DashboardScreen;
