@@ -1,8 +1,12 @@
+import React, { useState, useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet } from 'react-native';
+import { ActivityIndicator, View } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth } from './firebaseConfig';
 
+// Pantallas
 import LoginScreen from './src/screens/LoginScreen';
 import RegisterScreen from './src/screens/RegisterScreen';
 import DashboardScreen from './src/screens/DashboardScreen';
@@ -12,24 +16,52 @@ import AddEquipmentScreen from './AddEquipmentScreen';
 const Stack = createNativeStackNavigator();
 
 export default function App() {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // Escuchador global de autenticación
+    const unsubscribe = onAuthStateChanged(auth, (authenticatedUser) => {
+      setUser(authenticatedUser);
+      setLoading(false);
+    });
+    return unsubscribe;
+  }, []);
+
+  if (loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color="#00264d" />
+      </View>
+    );
+  }
+
   return (
     <NavigationContainer>
-      <Stack.Navigator 
-        initialRouteName="Login"
+      <Stack.Navigator
         screenOptions={{
           headerShown: false,
           contentStyle: { backgroundColor: '#f7f9fc' }
         }}
       >
-        <Stack.Screen name="Login" component={LoginScreen} />
-        <Stack.Screen name="Register" component={RegisterScreen} />
-        <Stack.Screen name="Dashboard" component={DashboardScreen} />
-        <Stack.Screen name="Inventory" component={InventoryScreen} />
-        <Stack.Screen 
-          name="AddEquipment" 
-          component={AddEquipmentScreen} 
-          options={{ headerShown: true, title: 'Añadir Equipo' }}
-        />
+        {user ? (
+          // STACK PARA USUARIOS LOGUEADOS
+          <>
+            <Stack.Screen name="Dashboard" component={DashboardScreen} />
+            <Stack.Screen name="Inventory" component={InventoryScreen} />
+            <Stack.Screen
+              name="AddEquipment"
+              component={AddEquipmentScreen}
+              options={{ headerShown: true, title: 'Añadir Equipo' }}
+            />
+          </>
+        ) : (
+          // STACK PARA USUARIOS NO LOGUEADOS
+          <>
+            <Stack.Screen name="Login" component={LoginScreen} />
+            <Stack.Screen name="Register" component={RegisterScreen} />
+          </>
+        )}
       </Stack.Navigator>
       <StatusBar style="auto" />
     </NavigationContainer>
