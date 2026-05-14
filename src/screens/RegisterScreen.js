@@ -1,20 +1,36 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, SafeAreaView } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, SafeAreaView, Alert, ActivityIndicator } from 'react-native';
 import ScoutLogo from '../components/ScoutLogo';
+import { registrarUsuario } from '../services/authService';
 
 const RegisterScreen = ({ navigation }) => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [perfil, setPerfil] = useState('Miembro');
+  const [loading, setLoading] = useState(false);
 
-  const handleRegister = () => {
-    // Para la maqueta, simulamos el registro y navegamos al Dashboard
-    navigation.replace('Dashboard');
+  const handleRegister = async () => {
+    if (!name || !email || !password) {
+      Alert.alert("Error", "Por favor completa todos los campos.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await registrarUsuario(email, password, name, perfil);
+      // No necesitamos navegar manualmente, App.js lo hará al detectar la sesión
+    } catch (error) {
+      console.error("Error en handleRegister:", error);
+      Alert.alert("Error de Registro", error.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <KeyboardAvoidingView 
+      <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
@@ -43,7 +59,7 @@ const RegisterScreen = ({ navigation }) => {
             keyboardType="email-address"
             autoCapitalize="none"
           />
-          
+
           <TextInput
             style={styles.input}
             placeholder="Contraseña"
@@ -53,12 +69,20 @@ const RegisterScreen = ({ navigation }) => {
             secureTextEntry
           />
 
-          <TouchableOpacity style={styles.registerButton} onPress={handleRegister}>
-            <Text style={styles.registerButtonText}>Registrarse</Text>
+          <TouchableOpacity
+            style={styles.registerButton}
+            onPress={handleRegister}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#ffffff" />
+            ) : (
+              <Text style={styles.registerButtonText}>Registrarse</Text>
+            )}
           </TouchableOpacity>
 
-          <TouchableOpacity 
-            style={styles.loginLink} 
+          <TouchableOpacity
+            style={styles.loginLink}
             onPress={() => navigation.navigate('Login')}
           >
             <Text style={styles.loginText}>¿Ya tienes cuenta? <Text style={styles.loginTextBold}>Inicia Sesión</Text></Text>
@@ -70,33 +94,12 @@ const RegisterScreen = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#f7f9fc',
-  },
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    padding: 24,
-  },
-  header: {
-    alignItems: 'center',
-    marginBottom: 40,
-  },
-  title: {
-    fontSize: 26,
-    fontWeight: '700',
-    color: '#00264d',
-    marginTop: 16,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#5c738a',
-    marginTop: 8,
-  },
-  form: {
-    width: '100%',
-  },
+  safeArea: { flex: 1, backgroundColor: '#f7f9fc' },
+  container: { flex: 1, justifyContent: 'center', padding: 24 },
+  header: { alignItems: 'center', marginBottom: 40 },
+  title: { fontSize: 26, fontWeight: '700', color: '#00264d', marginTop: 16 },
+  subtitle: { fontSize: 16, color: '#5c738a', marginTop: 8 },
+  form: { width: '100%' },
   input: {
     backgroundColor: '#ffffff',
     borderRadius: 12,
@@ -119,23 +122,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 8,
   },
-  registerButtonText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  loginLink: {
-    marginTop: 24,
-    alignItems: 'center',
-  },
-  loginText: {
-    color: '#5c738a',
-    fontSize: 14,
-  },
-  loginTextBold: {
-    fontWeight: '700',
-    color: '#00264d',
-  },
+  registerButtonText: { color: '#ffffff', fontSize: 16, fontWeight: '600' },
+  loginLink: { marginTop: 24, alignItems: 'center' },
+  loginText: { color: '#5c738a', fontSize: 14 },
+  loginTextBold: { fontWeight: '700', color: '#00264d' },
 });
 
 export default RegisterScreen;

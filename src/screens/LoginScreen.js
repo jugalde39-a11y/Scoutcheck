@@ -1,19 +1,34 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, SafeAreaView } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, SafeAreaView, Alert, ActivityIndicator } from 'react-native';
 import ScoutLogo from '../components/ScoutLogo';
+import { loginUsuario } from '../services/authService';
 
 const LoginScreen = ({ navigation }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = () => {
-    // Para la maqueta, simplemente navegaremos al Dashboard
-    navigation.replace('Dashboard');
+  const handleLogin = async () => {
+    if (!email || !password) {
+      Alert.alert("Error", "Ingresa tu correo y contraseña.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await loginUsuario(email, password);
+      // No necesitamos navegar manualmente, App.js lo hará al detectar la sesión
+    } catch (error) {
+      console.error("Error en handleLogin:", error);
+      Alert.alert("Error de Inicio de Sesión", error.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <KeyboardAvoidingView 
+      <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
@@ -33,7 +48,7 @@ const LoginScreen = ({ navigation }) => {
             keyboardType="email-address"
             autoCapitalize="none"
           />
-          
+
           <TextInput
             style={styles.input}
             placeholder="Contraseña"
@@ -43,12 +58,20 @@ const LoginScreen = ({ navigation }) => {
             secureTextEntry
           />
 
-          <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
-            <Text style={styles.loginButtonText}>Iniciar Sesión</Text>
+          <TouchableOpacity
+            style={styles.loginButton}
+            onPress={handleLogin}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#ffffff" />
+            ) : (
+              <Text style={styles.loginButtonText}>Iniciar Sesión</Text>
+            )}
           </TouchableOpacity>
 
-          <TouchableOpacity 
-            style={styles.registerLink} 
+          <TouchableOpacity
+            style={styles.registerLink}
             onPress={() => navigation.navigate('Register')}
           >
             <Text style={styles.registerText}>¿No tienes cuenta? <Text style={styles.registerTextBold}>Regístrate</Text></Text>
@@ -60,33 +83,12 @@ const LoginScreen = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#f7f9fc',
-  },
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    padding: 24,
-  },
-  header: {
-    alignItems: 'center',
-    marginBottom: 48,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#00264d',
-    marginTop: 16,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#5c738a',
-    marginTop: 8,
-  },
-  form: {
-    width: '100%',
-  },
+  safeArea: { flex: 1, backgroundColor: '#f7f9fc' },
+  container: { flex: 1, justifyContent: 'center', padding: 24 },
+  header: { alignItems: 'center', marginBottom: 48 },
+  title: { fontSize: 28, fontWeight: '700', color: '#00264d', marginTop: 16 },
+  subtitle: { fontSize: 16, color: '#5c738a', marginTop: 8 },
+  form: { width: '100%' },
   input: {
     backgroundColor: '#ffffff',
     borderRadius: 12,
@@ -103,29 +105,16 @@ const styles = StyleSheet.create({
     borderColor: '#e1e8f0',
   },
   loginButton: {
-    backgroundColor: '#00264d', // Dark blue from the Scout theme
+    backgroundColor: '#00264d',
     borderRadius: 12,
     padding: 16,
     alignItems: 'center',
     marginTop: 8,
   },
-  loginButtonText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  registerLink: {
-    marginTop: 24,
-    alignItems: 'center',
-  },
-  registerText: {
-    color: '#5c738a',
-    fontSize: 14,
-  },
-  registerTextBold: {
-    fontWeight: '700',
-    color: '#00264d',
-  },
+  loginButtonText: { color: '#ffffff', fontSize: 16, fontWeight: '600' },
+  registerLink: { marginTop: 24, alignItems: 'center' },
+  registerText: { color: '#5c738a', fontSize: 14 },
+  registerTextBold: { fontWeight: '700', color: '#00264d' },
 });
 
 export default LoginScreen;
