@@ -4,6 +4,8 @@
   "main": "index.js",
   "scripts": {
     "start": "expo start",
+    "tunnel": "expo start --tunnel",
+    "clear": "expo start -c",
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web"

@@ -4,7 +4,7 @@ import ScoutLogo from '../components/ScoutLogo';
 import { auth } from '../../firebaseConfig';
 import { obtenerDatosUsuario, cerrarSesion } from '../services/authService';
 
-const DashboardScreen = () => {
+const DashboardScreen = ({ navigation }) => {
   const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -70,6 +70,32 @@ const DashboardScreen = () => {
             <Text style={styles.statLabel}>En Uso</Text>
           </View>
         </View>
+
+        {/* --- NUEVOS BOTONES DE NAVEGACIÓN --- */}
+        <Text style={styles.sectionTitle}>Acciones Rápidas</Text>
+        
+        <TouchableOpacity 
+          style={styles.actionButtonPrimary} 
+          onPress={() => navigation.navigate('AddEquipment')}
+        >
+          <Text style={styles.actionIcon}>➕</Text>
+          <View style={styles.actionTextContainer}>
+            <Text style={styles.actionTitlePrimary}>Añadir Nuevo Equipo</Text>
+            <Text style={styles.actionSubtitlePrimary}>Registra tiendas, herramientas, etc.</Text>
+          </View>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={styles.actionButtonSecondary} 
+          onPress={() => navigation.navigate('Inventory')}
+        >
+          <Text style={styles.actionIcon}>📋</Text>
+          <View style={styles.actionTextContainer}>
+            <Text style={styles.actionTitleSecondary}>Ver Inventario</Text>
+            <Text style={styles.actionSubtitleSecondary}>Consulta o edita la lista completa</Text>
+          </View>
+        </TouchableOpacity>
+
       </ScrollView>
     </SafeAreaView>
   );
@@ -123,6 +149,62 @@ const styles = StyleSheet.create({
   },
   statNumber: { fontSize: 32, fontWeight: '700', color: '#00264d', marginBottom: 4 },
   statLabel: { fontSize: 13, color: '#5c738a', fontWeight: '500' },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#00264d',
+    marginBottom: 16,
+  },
+  actionButtonPrimary: {
+    backgroundColor: '#00264d',
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 20,
+    borderRadius: 16,
+    marginBottom: 16,
+    shadowColor: '#00264d',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  actionButtonSecondary: {
+    backgroundColor: '#ffffff',
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 20,
+    borderRadius: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#e1e8f0',
+  },
+  actionIcon: {
+    fontSize: 28,
+    marginRight: 16,
+  },
+  actionTextContainer: {
+    flex: 1,
+  },
+  actionTitlePrimary: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  actionSubtitlePrimary: {
+    color: '#8a9eb3',
+    fontSize: 13,
+  },
+  actionTitleSecondary: {
+    color: '#00264d',
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  actionSubtitleSecondary: {
+    color: '#5c738a',
+    fontSize: 13,
+  },
 });
 
 export default DashboardScreen;

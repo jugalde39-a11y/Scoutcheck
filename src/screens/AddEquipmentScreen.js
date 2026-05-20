@@ -11,7 +11,7 @@ import {
     Platform 
 } from 'react-native';
 import { collection, addDoc } from 'firebase/firestore';
-import { db } from './firebaseConfig';
+import { db } from '../../firebaseConfig';
 
 // [PLACEHOLDER: Lógica de Escaneo de QR]
 // Importa expo-barcode-scanner una vez instalado en tu root:

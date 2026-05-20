@@ -11,7 +11,7 @@ import LoginScreen from './src/screens/LoginScreen';
 import RegisterScreen from './src/screens/RegisterScreen';
 import DashboardScreen from './src/screens/DashboardScreen';
 import InventoryScreen from './src/screens/InventoryScreen';
-import AddEquipmentScreen from './AddEquipmentScreen';
+import AddEquipmentScreen from './src/screens/AddEquipmentScreen';
 
 const Stack = createNativeStackNavigator();
 
