@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, SafeAreaView, Alert, ActivityIndicator } from 'react-native';
 import ScoutLogo from '../components/ScoutLogo';
-import { loginUsuario } from '../services/authService';
+import { loginUsuario, recuperarPassword } from '../services/authService';
 
 const LoginScreen = ({ navigation }) => {
   const [email, setEmail] = useState('');
@@ -21,6 +21,22 @@ const LoginScreen = ({ navigation }) => {
     } catch (error) {
       console.error("Error en handleLogin:", error);
       Alert.alert("Error de Inicio de Sesión", error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResetPassword = async () => {
+    if (!email) {
+      Alert.alert("Aviso", "Por favor ingresa tu correo electrónico en el campo superior para enviarte el enlace de recuperación.");
+      return;
+    }
+    setLoading(true);
+    try {
+      await recuperarPassword(email);
+      Alert.alert("Éxito", "Se ha enviado un correo para restablecer tu contraseña. Revisa tu bandeja de entrada.");
+    } catch (error) {
+      Alert.alert("Error", "No se pudo enviar el correo. Verifica que esté bien escrito.");
     } finally {
       setLoading(false);
     }
@@ -71,6 +87,13 @@ const LoginScreen = ({ navigation }) => {
           </TouchableOpacity>
 
           <TouchableOpacity
+            style={styles.forgotPasswordLink}
+            onPress={handleResetPassword}
+          >
+            <Text style={styles.forgotPasswordText}>¿Olvidaste tu contraseña?</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
             style={styles.registerLink}
             onPress={() => navigation.navigate('Register')}
           >
@@ -112,6 +135,8 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   loginButtonText: { color: '#ffffff', fontSize: 16, fontWeight: '600' },
+  forgotPasswordLink: { marginTop: 16, alignItems: 'center' },
+  forgotPasswordText: { color: '#00264d', fontSize: 14, fontWeight: '600', textDecorationLine: 'underline' },
   registerLink: { marginTop: 24, alignItems: 'center' },
   registerText: { color: '#5c738a', fontSize: 14 },
   registerTextBold: { fontWeight: '700', color: '#00264d' },

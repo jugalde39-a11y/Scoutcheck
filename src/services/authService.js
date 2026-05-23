@@ -1,7 +1,8 @@
 import { 
     createUserWithEmailAndPassword, 
     signInWithEmailAndPassword, 
-    signOut 
+    signOut,
+    sendPasswordResetEmail
 } from 'firebase/auth';
 import { 
     doc, 
@@ -55,6 +56,19 @@ export const loginUsuario = async (email, password) => {
         return userCredential.user;
     } catch (error) {
         console.error("Error en loginUsuario:", error);
+        throw error;
+    }
+};
+
+/**
+ * Envía un correo de recuperación de contraseña.
+ * @param {string} email 
+ */
+export const recuperarPassword = async (email) => {
+    try {
+        await sendPasswordResetEmail(auth, email);
+    } catch (error) {
+        console.error("Error en recuperarPassword:", error);
         throw error;
     }
 };

@@ -12,6 +12,8 @@ import RegisterScreen from './src/screens/RegisterScreen';
 import DashboardScreen from './src/screens/DashboardScreen';
 import InventoryScreen from './src/screens/InventoryScreen';
 import AddEquipmentScreen from './src/screens/AddEquipmentScreen';
+import ScanToSearchScreen from './src/screens/ScanToSearchScreen';
+import EditEquipmentScreen from './src/screens/EditEquipmentScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -53,6 +55,16 @@ export default function App() {
               name="AddEquipment"
               component={AddEquipmentScreen}
               options={{ headerShown: true, title: 'Añadir Equipo' }}
+            />
+            <Stack.Screen
+              name="ScanToSearch"
+              component={ScanToSearchScreen}
+              options={{ headerShown: true, title: 'Buscar Equipo' }}
+            />
+            <Stack.Screen
+              name="EditEquipment"
+              component={EditEquipmentScreen}
+              options={{ headerShown: true, title: 'Editar Equipo' }}
             />
           </>
         ) : (

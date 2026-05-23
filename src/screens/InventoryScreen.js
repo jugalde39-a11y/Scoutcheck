@@ -1,183 +1,168 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TextInput, FlatList, TouchableOpacity } from 'react-native';
-import ScoutLogo from '../components/ScoutLogo';
+import React, { useState, useEffect } from 'react';
+import { 
+    View, 
+    Text, 
+    FlatList, 
+    TextInput, 
+    StyleSheet, 
+    TouchableOpacity, 
+    Alert, 
+    ActivityIndicator,
+    SafeAreaView
+} from 'react-native';
+import { collection, onSnapshot, deleteDoc, doc } from 'firebase/firestore';
+import { db, auth } from '../../firebaseConfig';
+import { obtenerDatosUsuario } from '../services/authService';
 
-// Datos de prueba basados en tu imagen
-const MOCK_DATA = [
-  { id: '1', name: 'Carpa 4 Personas', category: 'Campamento', status: 'Disponible' },
-  { id: '2', name: 'Saco de Dormir', category: 'Campamento', status: 'En Uso' },
-  { id: '3', name: 'Linterna LED', category: 'Iluminación', status: 'Disponible' },
-  { id: '4', name: 'Brújula Profesional', category: 'Navegación', status: 'Disponible' },
-  { id: '5', name: 'Mochila 60L', category: 'Equipamiento', status: 'En Uso' },
-];
+export default function InventoryScreen({ navigation }) {
+    const [equipment, setEquipment] = useState([]);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [loading, setLoading] = useState(true);
+    const [userProfile, setUserProfile] = useState(null);
 
-const InventoryScreen = ({ navigation }) => {
-  const [searchQuery, setSearchQuery] = useState('');
+    useEffect(() => {
+        // Obtener el perfil del usuario actual
+        const fetchProfile = async () => {
+            if (auth.currentUser) {
+                try {
+                    const data = await obtenerDatosUsuario(auth.currentUser.uid);
+                    if (data) setUserProfile(data.perfil);
+                } catch (error) {
+                    console.error("Error obteniendo perfil en inventario:", error);
+                }
+            }
+        };
+        fetchProfile();
 
-  const renderItem = ({ item }) => {
-    const isAvailable = item.status === 'Disponible';
-    return (
-      <View style={styles.card}>
-        <View style={styles.cardIconContainer}>
-          <Text style={{ fontSize: 24, color: '#0055ff' }}>📦</Text>
-        </View>
+        // Referencia a la colección 'inventario'
+        const inventoryRef = collection(db, 'inventario');
         
-        <View style={styles.cardInfo}>
-          <Text style={styles.cardTitle}>{item.name}</Text>
-          <Text style={styles.cardCategory}>{item.category}</Text>
-        </View>
-        
-        <View style={styles.statusContainer}>
-          <View style={[styles.statusDot, { backgroundColor: isAvailable ? '#00cc66' : '#ff3333' }]} />
-          <Text style={[styles.statusText, { color: isAvailable ? '#00a344' : '#cc0000' }]}>
-            {item.status}
-          </Text>
-        </View>
-      </View>
+        // Suscribirse a los cambios en tiempo real
+        const unsubscribe = onSnapshot(inventoryRef, (snapshot) => {
+            const items = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+            setEquipment(items);
+            setLoading(false);
+        }, (error) => {
+            console.error("Error al obtener inventario:", error);
+            Alert.alert("Error", "Hubo un problema al cargar el inventario.");
+            setLoading(false);
+        });
+
+        // Limpiar suscripción al desmontar
+        return () => unsubscribe();
+    }, []);
+
+    const handleDelete = (id) => {
+        if (userProfile !== 'Dirigente' && userProfile !== 'Bodeguero') {
+            Alert.alert("Acceso Denegado", "Solo los Bodegueros o Dirigentes pueden eliminar equipos.");
+            return;
+        }
+
+        Alert.alert(
+            "Eliminar Equipo",
+            "¿Estás seguro de que deseas eliminar este artículo de forma permanente?",
+            [
+                { text: "Cancelar", style: "cancel" },
+                { 
+                    text: "Eliminar", 
+                    style: "destructive",
+                    onPress: async () => {
+                        try {
+                            await deleteDoc(doc(db, 'inventario', id));
+                        } catch (error) {
+                            console.error("Error al eliminar:", error);
+                            Alert.alert("Error", "No se pudo eliminar el artículo.");
+                        }
+                    }
+                }
+            ]
+        );
+    };
+
+    // Filtrar equipos por nombre o categoría
+    const filteredEquipment = equipment.filter(item => 
+        item.nombre?.toLowerCase().includes(searchQuery.toLowerCase()) || 
+        item.categoria?.toLowerCase().includes(searchQuery.toLowerCase())
     );
-  };
 
-  return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.headerContainer}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Text style={{ fontSize: 24, color: '#00264d' }}>←</Text>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Inventario Completo</Text>
-        <ScoutLogo size={36} />
-      </View>
-
-      <View style={styles.searchContainer}>
-        <View style={styles.searchBar}>
-          <Text style={{ fontSize: 16, color: '#8a9eb3', marginRight: 8 }}>🔍</Text>
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Buscar equipo..."
-            placeholderTextColor="#8a9eb3"
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
+    const renderItem = ({ item }) => (
+        <View style={styles.card}>
+            <View style={styles.cardContent}>
+                <Text style={styles.itemName}>{item.nombre}</Text>
+                <Text style={styles.itemDetail}>Categoría: {item.categoria}</Text>
+                <Text style={styles.itemDetail}>Cantidad: {item.cantidad}</Text>
+                <Text style={styles.itemDetail}>Estado: {item.estado}</Text>
+                {item.qrCode && <Text style={styles.itemQr}>QR Vinculado: {item.qrCode}</Text>}
+            </View>
+            {(userProfile === 'Dirigente' || userProfile === 'Bodeguero') && (
+                <View style={styles.actionsContainer}>
+                    <TouchableOpacity style={styles.editButton} onPress={() => navigation.navigate('EditEquipment', { item })}>
+                        <Text style={styles.editButtonText}>Editar</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.deleteButton} onPress={() => handleDelete(item.id)}>
+                        <Text style={styles.deleteButtonText}>Eliminar</Text>
+                    </TouchableOpacity>
+                </View>
+            )}
         </View>
-      </View>
+    );
 
-      <View style={styles.listHeader}>
-        <Text style={styles.itemCount}>{MOCK_DATA.length} artículos</Text>
-      </View>
-
-      <FlatList
-        data={MOCK_DATA}
-        keyExtractor={item => item.id}
-        renderItem={renderItem}
-        contentContainerStyle={styles.listContainer}
-        showsVerticalScrollIndicator={false}
-      />
-    </SafeAreaView>
-  );
-};
+    return (
+        <SafeAreaView style={styles.container}>
+            <View style={styles.innerContainer}>
+                <Text style={styles.headerTitle}>Bodega Scout</Text>
+                <TextInput
+                    style={styles.searchInput}
+                    placeholder="Buscar por nombre o categoria de equipo"
+                    placeholderTextColor="#9ca3af"
+                    value={searchQuery}
+                    onChangeText={setSearchQuery}
+                />
+                
+                {loading ? (
+                    <ActivityIndicator size="large" color="#10b981" style={{ marginTop: 40 }} />
+                ) : (
+                    <FlatList
+                        data={filteredEquipment}
+                        keyExtractor={item => item.id}
+                        renderItem={renderItem}
+                        contentContainerStyle={styles.listContainer}
+                        ListEmptyComponent={<Text style={styles.emptyText}>No hay equipos que coincidan con la búsqueda.</Text>}
+                        showsVerticalScrollIndicator={false}
+                    />
+                )}
+            </View>
+        </SafeAreaView>
+    );
+}
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#f7f9fc',
-  },
-  headerContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    backgroundColor: '#ffffff',
-  },
-  backButton: {
-    padding: 4,
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#00264d',
-  },
-  searchContainer: {
-    backgroundColor: '#ffffff',
-    paddingHorizontal: 20,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e1e8f0',
-  },
-  searchBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f0f4f8',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    height: 48,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 16,
-    color: '#00264d',
-  },
-  listHeader: {
-    paddingHorizontal: 20,
-    paddingTop: 24,
-    paddingBottom: 12,
-  },
-  itemCount: {
-    fontSize: 14,
-    color: '#5c738a',
-  },
-  listContainer: {
-    paddingHorizontal: 20,
-    paddingBottom: 24,
-  },
-  card: {
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  cardIconContainer: {
-    width: 56,
-    height: 56,
-    borderRadius: 12,
-    backgroundColor: '#e6f0ff',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 16,
-  },
-  cardInfo: {
-    flex: 1,
-  },
-  cardTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#00264d',
-    marginBottom: 4,
-  },
-  cardCategory: {
-    fontSize: 13,
-    color: '#5c738a',
-  },
-  statusContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginRight: 6,
-  },
-  statusText: {
-    fontSize: 13,
-    fontWeight: '500',
-  },
+    container: { flex: 1, backgroundColor: '#f9fafb' },
+    innerContainer: { flex: 1, padding: 20 },
+    headerTitle: { fontSize: 28, fontWeight: 'bold', color: '#111827', marginBottom: 16, marginTop: 10 },
+    searchInput: {
+        backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#e5e7eb',
+        borderRadius: 10, paddingHorizontal: 15, paddingVertical: 12,
+        fontSize: 16, color: '#1f2937', marginBottom: 16,
+    },
+    listContainer: { paddingBottom: 40 },
+    card: {
+        backgroundColor: '#ffffff', borderRadius: 12, padding: 16,
+        marginBottom: 12, flexDirection: 'row', justifyContent: 'space-between',
+        alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05, shadowRadius: 2, elevation: 2,
+    },
+    cardContent: { flex: 1, marginRight: 10 },
+    itemName: { fontSize: 18, fontWeight: '700', color: '#1f2937', marginBottom: 4 },
+    itemDetail: { fontSize: 14, color: '#4b5563', marginBottom: 2 },
+    itemQr: { fontSize: 12, color: '#6366f1', marginTop: 4, fontWeight: '600' },
+    actionsContainer: { alignItems: 'flex-end', justifyContent: 'space-between', height: 70 },
+    editButton: { backgroundColor: '#e0e7ff', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8, marginBottom: 8, width: 75, alignItems: 'center' },
+    editButtonText: { color: '#4338ca', fontWeight: '600', fontSize: 14 },
+    deleteButton: { backgroundColor: '#fee2e2', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8, width: 75, alignItems: 'center' },
+    deleteButtonText: { color: '#ef4444', fontWeight: '600', fontSize: 14 },
+    emptyText: { textAlign: 'center', color: '#6b7280', fontSize: 16, marginTop: 40 }
 });
-
-export default InventoryScreen;

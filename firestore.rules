@@ -1,0 +1,15 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Reglas para la colección de usuarios (Solo el dueño puede leer/escribir su propio documento)
+    match /usuarios/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    // Reglas para el inventario: Cualquiera logueado lee/crea, pero solo Bodegueros/Dirigentes editan o borran
+    match /inventario/{document=**} {
+      allow read, create: if request.auth != null;
+      allow update, delete: if request.auth != null && 
+        get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.perfil in ['Bodeguero', 'Dirigente'];
+    }
+  }
+}

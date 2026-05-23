@@ -4,13 +4,13 @@ import { initializeAuth, getReactNativePersistence } from 'firebase/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const firebaseConfig = {
-  apiKey: "AIzaSyCgoiVMLZAIqvfmvjSWg4o7-oSAt6ds19w",
-  authDomain: "scoutcheck-e4534.firebaseapp.com",
-  projectId: "scoutcheck-e4534",
-  storageBucket: "scoutcheck-e4534.firebasestorage.app",
-  messagingSenderId: "590160595313",
-  appId: "1:590160595313:web:96ac5645f74ec443d90ed0",
-  measurementId: "G-QGX5YNXBZ1"
+  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
+  measurementId: process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID
 };
 
 // Inicializar la aplicación de Firebase

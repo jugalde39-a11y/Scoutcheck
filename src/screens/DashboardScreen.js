@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, ScrollView, ActivityIndicator } from 'react-native';
 import ScoutLogo from '../components/ScoutLogo';
-import { auth } from '../../firebaseConfig';
+import { auth, db } from '../../firebaseConfig';
+import { collection, onSnapshot } from 'firebase/firestore';
 import { obtenerDatosUsuario, cerrarSesion } from '../services/authService';
 
 const DashboardScreen = ({ navigation }) => {
   const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({ disponibles: 0, enUso: 0 });
 
   useEffect(() => {
     const fetchData = async () => {
@@ -22,6 +24,29 @@ const DashboardScreen = ({ navigation }) => {
     };
 
     fetchData();
+  }, []);
+
+  useEffect(() => {
+    const inventoryRef = collection(db, 'inventario');
+    
+    // Escuchar cambios en tiempo real
+    const unsubscribe = onSnapshot(inventoryRef, (snapshot) => {
+      let countDisponibles = 0;
+      let countEnUso = 0;
+      
+      snapshot.forEach((doc) => {
+        const item = doc.data();
+        const qty = item.cantidad || 0; // Contamos la 'cantidad', no solo el documento
+        
+        if (item.estado === 'Nuevo' || item.estado === 'Usado') {
+          countDisponibles += qty;
+        } else {
+          countEnUso += qty;
+        }
+      });
+      setStats({ disponibles: countDisponibles, enUso: countEnUso });
+    });
+    return () => unsubscribe();
   }, []);
 
   if (loading) {
@@ -58,16 +83,16 @@ const DashboardScreen = ({ navigation }) => {
             <View style={[styles.iconContainer, { backgroundColor: '#e6f7ec' }]}>
               <Text style={{ fontSize: 20, color: '#00a344' }}>📦</Text>
             </View>
-            <Text style={styles.statNumber}>7</Text>
-            <Text style={styles.statLabel}>Equipo Disponible</Text>
+            <Text style={styles.statNumber}>{stats.disponibles}</Text>
+            <Text style={styles.statLabel}>En Bodega</Text>
           </View>
 
           <View style={styles.statCard}>
             <View style={[styles.iconContainer, { backgroundColor: '#fff3e6' }]}>
               <Text style={{ fontSize: 20, color: '#f26d21' }}>📦</Text>
             </View>
-            <Text style={styles.statNumber}>3</Text>
-            <Text style={styles.statLabel}>En Uso</Text>
+            <Text style={styles.statNumber}>{stats.enUso}</Text>
+            <Text style={styles.statLabel}>En Uso / Otros</Text>
           </View>
         </View>
 
@@ -75,13 +100,24 @@ const DashboardScreen = ({ navigation }) => {
         <Text style={styles.sectionTitle}>Acciones Rápidas</Text>
         
         <TouchableOpacity 
+          style={styles.actionButtonScan} 
+          onPress={() => navigation.navigate('ScanToSearch')}
+        >
+          <Text style={styles.actionIcon}>🔍</Text>
+          <View style={styles.actionTextContainer}>
+            <Text style={styles.actionTitleScan}>Escanear para Buscar</Text>
+            <Text style={styles.actionSubtitleScan}>Encuentra un equipo por su código</Text>
+          </View>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
           style={styles.actionButtonPrimary} 
           onPress={() => navigation.navigate('AddEquipment')}
         >
           <Text style={styles.actionIcon}>➕</Text>
           <View style={styles.actionTextContainer}>
-            <Text style={styles.actionTitlePrimary}>Añadir Nuevo Equipo</Text>
-            <Text style={styles.actionSubtitlePrimary}>Registra tiendas, herramientas, etc.</Text>
+            <Text style={styles.actionTitlePrimary}>Ingresar a Bodega</Text>
+            <Text style={styles.actionSubtitlePrimary}>Registra y genera QR para equipos</Text>
           </View>
         </TouchableOpacity>
 
@@ -155,6 +191,15 @@ const styles = StyleSheet.create({
     color: '#00264d',
     marginBottom: 16,
   },
+  actionButtonScan: {
+    backgroundColor: '#4338ca', // Color Índigo vibrante
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 20,
+    borderRadius: 16,
+    marginBottom: 16,
+    elevation: 4,
+  },
   actionButtonPrimary: {
     backgroundColor: '#00264d',
     flexDirection: 'row',
@@ -184,6 +229,16 @@ const styles = StyleSheet.create({
   },
   actionTextContainer: {
     flex: 1,
+  },
+  actionTitleScan: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  actionSubtitleScan: {
+    color: '#c7d2fe',
+    fontSize: 13,
   },
   actionTitlePrimary: {
     color: '#ffffff',

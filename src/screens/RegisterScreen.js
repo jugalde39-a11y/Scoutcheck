@@ -7,8 +7,21 @@ const RegisterScreen = ({ navigation }) => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [perfil, setPerfil] = useState('Miembro');
+  const [perfil, setPerfil] = useState('Bodeguero');
   const [loading, setLoading] = useState(false);
+
+  // Componente UI para seleccionar perfil reutilizando estilos coherentes
+  const PerfilOption = ({ label }) => {
+    const isSelected = perfil === label;
+    return (
+      <TouchableOpacity 
+        style={[styles.perfilOption, isSelected && styles.perfilOptionSelected]}
+        onPress={() => setPerfil(label)}
+      >
+        <Text style={[styles.perfilText, isSelected && styles.perfilTextSelected]}>{label}</Text>
+      </TouchableOpacity>
+    );
+  };
 
   const handleRegister = async () => {
     if (!name || !email || !password) {
@@ -69,6 +82,12 @@ const RegisterScreen = ({ navigation }) => {
             secureTextEntry
           />
 
+          <Text style={styles.label}>Selecciona tu Perfil:</Text>
+          <View style={styles.perfilRow}>
+            <PerfilOption label="Bodeguero" />
+            <PerfilOption label="Dirigente" />
+          </View>
+
           <TouchableOpacity
             style={styles.registerButton}
             onPress={handleRegister}
@@ -115,6 +134,31 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e1e8f0',
   },
+  label: {
+    fontSize: 14,
+    color: '#5c738a',
+    marginBottom: 8,
+    marginLeft: 4,
+    fontWeight: '600'
+  },
+  perfilRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  perfilOption: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#e1e8f0',
+    backgroundColor: '#ffffff',
+    paddingVertical: 14,
+    borderRadius: 12,
+    marginHorizontal: 4,
+    alignItems: 'center',
+  },
+  perfilOptionSelected: { backgroundColor: '#00264d', borderColor: '#00264d' },
+  perfilText: { color: '#5c738a', fontWeight: '600', fontSize: 14 },
+  perfilTextSelected: { color: '#ffffff' },
   registerButton: {
     backgroundColor: '#00264d',
     borderRadius: 12,
