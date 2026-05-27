@@ -7,13 +7,16 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from './firebaseConfig';
 
 // Pantallas
+import { A11yProvider } from './src/screens/A11yContext';
 import LoginScreen from './src/screens/LoginScreen';
 import RegisterScreen from './src/screens/RegisterScreen';
 import DashboardScreen from './src/screens/DashboardScreen';
 import InventoryScreen from './src/screens/InventoryScreen';
 import AddEquipmentScreen from './src/screens/AddEquipmentScreen';
+import ProfileScreen from './src/screens/ProfileScreen';
 import ScanToSearchScreen from './src/screens/ScanToSearchScreen';
 import EditEquipmentScreen from './src/screens/EditEquipmentScreen';
+import ItemDetailScreen from './src/screens/ItemDetailScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -39,6 +42,7 @@ export default function App() {
   }
 
   return (
+    <A11yProvider>
     <NavigationContainer>
       <Stack.Navigator
         screenOptions={{
@@ -51,6 +55,11 @@ export default function App() {
           <>
             <Stack.Screen name="Dashboard" component={DashboardScreen} />
             <Stack.Screen name="Inventory" component={InventoryScreen} />
+            <Stack.Screen
+              name="Profile"
+              component={ProfileScreen}
+              options={{ headerShown: true, title: 'Mi Perfil' }}
+            />
             <Stack.Screen
               name="AddEquipment"
               component={AddEquipmentScreen}
@@ -66,6 +75,11 @@ export default function App() {
               component={EditEquipmentScreen}
               options={{ headerShown: true, title: 'Editar Equipo' }}
             />
+            <Stack.Screen
+              name="ItemDetail"
+              component={ItemDetailScreen}
+              options={{ headerShown: true, title: 'Ficha Técnica' }}
+            />
           </>
         ) : (
           // STACK PARA USUARIOS NO LOGUEADOS
@@ -77,5 +91,6 @@ export default function App() {
       </Stack.Navigator>
       <StatusBar style="auto" />
     </NavigationContainer>
+    </A11yProvider>
   );
 }

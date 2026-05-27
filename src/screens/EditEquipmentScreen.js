@@ -12,6 +12,8 @@ import {
 } from 'react-native';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../firebaseConfig';
+import { useA11y } from './A11yContext';
+import SelectOption from '../components/SelectOption';
 
 export default function EditEquipmentScreen({ route, navigation }) {
     // Recibimos el item desde el inventario
@@ -22,6 +24,7 @@ export default function EditEquipmentScreen({ route, navigation }) {
     const [category, setCategory] = useState(item.categoria);
     const [status, setStatus] = useState(item.estado);
     const [quantity, setQuantity] = useState(String(item.cantidad));
+    const { theme, textScale } = useA11y();
 
     const handleUpdate = async () => {
         if (!name.trim() || !category.trim() || !status || !quantity.trim()) {
@@ -47,52 +50,34 @@ export default function EditEquipmentScreen({ route, navigation }) {
         }
     };
 
-    const StatusOption = ({ label }) => (
-        <TouchableOpacity 
-            style={[styles.statusOption, status === label && styles.statusOptionSelected]}
-            onPress={() => setStatus(label)}
-        >
-            <Text style={[styles.statusText, status === label && styles.statusTextSelected]}>{label}</Text>
-        </TouchableOpacity>
-    );
-
-    const CategoryOption = ({ label }) => (
-        <TouchableOpacity 
-            style={[styles.statusOption, category === label && styles.statusOptionSelected]}
-            onPress={() => setCategory(label)}
-        >
-            <Text style={[styles.statusText, category === label && styles.statusTextSelected]}>{label}</Text>
-        </TouchableOpacity>
-    );
-
     return (
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.container}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={[styles.container, { backgroundColor: theme.bg }]}>
             <ScrollView contentContainerStyle={styles.scrollContainer} keyboardShouldPersistTaps="handled">
-                <Text style={styles.headerTitle}>Editar Equipo</Text>
-                <Text style={styles.subtitle}>Modifica los datos del registro y guarda los cambios.</Text>
+                <Text style={[styles.headerTitle, { color: theme.textMain, fontSize: 28 * textScale, fontFamily: theme.font }]}>Editar Equipo</Text>
+                <Text style={[styles.subtitle, { color: theme.textSub, fontSize: 16 * textScale, fontFamily: theme.font }]}>Modifica los datos del registro y guarda los cambios.</Text>
 
                 <View style={styles.inputGroup}>
-                    <Text style={styles.label}>Nombre del artículo</Text>
+                    <Text style={[styles.label, { color: theme.textMain, fontFamily: theme.font }]}>Nombre del artículo</Text>
                     <TextInput 
-                        style={styles.textInput}
+                        style={[styles.textInput, { backgroundColor: theme.card, color: theme.textMain, borderColor: theme.border, fontFamily: theme.font }]}
                         value={name}
                         onChangeText={setName}
                     />
                 </View>
 
                 <View style={styles.inputGroup}>
-                    <Text style={styles.label}>Categoría</Text>
+                    <Text style={[styles.label, { color: theme.textMain, fontFamily: theme.font }]}>Categoría</Text>
                     <View style={styles.statusRow}>
-                        <CategoryOption label="Campamento" />
-                        <CategoryOption label="Cocina" />
-                        <CategoryOption label="Botiquín" />
+                        <SelectOption label="Campamento" currentValue={category} onSelect={setCategory} />
+                        <SelectOption label="Cocina" currentValue={category} onSelect={setCategory} />
+                        <SelectOption label="Botiquín" currentValue={category} onSelect={setCategory} />
                     </View>
                 </View>
 
                 <View style={styles.inputGroup}>
-                    <Text style={styles.label}>Cantidad</Text>
+                    <Text style={[styles.label, { color: theme.textMain, fontFamily: theme.font }]}>Cantidad</Text>
                     <TextInput 
-                        style={styles.textInput}
+                        style={[styles.textInput, { backgroundColor: theme.card, color: theme.textMain, borderColor: theme.border, fontFamily: theme.font }]}
                         keyboardType="numeric"
                         value={quantity}
                         onChangeText={setQuantity}
@@ -100,16 +85,16 @@ export default function EditEquipmentScreen({ route, navigation }) {
                 </View>
 
                 <View style={styles.inputGroup}>
-                    <Text style={styles.label}>Estado del artículo</Text>
+                    <Text style={[styles.label, { color: theme.textMain, fontFamily: theme.font }]}>Estado del artículo</Text>
                     <View style={styles.statusRow}>
-                        <StatusOption label="Nuevo" />
-                        <StatusOption label="Usado" />
-                        <StatusOption label="Dañado" />
+                        <SelectOption label="Nuevo" currentValue={status} onSelect={setStatus} />
+                        <SelectOption label="Usado" currentValue={status} onSelect={setStatus} />
+                        <SelectOption label="Dañado" currentValue={status} onSelect={setStatus} />
                     </View>
                 </View>
 
-                <TouchableOpacity style={styles.saveButton} onPress={handleUpdate}>
-                    <Text style={styles.saveButtonText}>Actualizar Equipo</Text>
+                <TouchableOpacity style={[styles.saveButton, { backgroundColor: theme.success }]} onPress={handleUpdate}>
+                    <Text style={[styles.saveButtonText, { fontFamily: theme.font }]}>Actualizar Equipo</Text>
                 </TouchableOpacity>
             </ScrollView>
         </KeyboardAvoidingView>
@@ -130,15 +115,6 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.05, shadowRadius: 2, elevation: 1,
     },
     statusRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 },
-    statusOption: {
-        flex: 1, borderWidth: 1, borderColor: '#e5e7eb', backgroundColor: '#ffffff',
-        paddingVertical: 14, borderRadius: 10, marginHorizontal: 3, alignItems: 'center',
-        shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05,
-        shadowRadius: 2, elevation: 1,
-    },
-    statusOptionSelected: { backgroundColor: '#6366f1', borderColor: '#6366f1' },
-    statusText: { color: '#6b7280', fontWeight: '600', fontSize: 14 },
-    statusTextSelected: { color: '#ffffff' },
     saveButton: {
         backgroundColor: '#10b981', paddingVertical: 16, borderRadius: 12,
         alignItems: 'center', shadowColor: '#10b981', shadowOffset: { width: 0, height: 4 },

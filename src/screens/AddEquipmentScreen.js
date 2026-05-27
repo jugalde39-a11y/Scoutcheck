@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { 
     View, 
     Text, 
@@ -14,10 +14,14 @@ import {
     ActivityIndicator
 } from 'react-native';
 import { collection, addDoc, query, where, getDocs } from 'firebase/firestore';
-import { db } from '../../firebaseConfig';
+import { db, auth } from '../../firebaseConfig';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as Sharing from 'expo-sharing';
+import * as MediaLibrary from 'expo-media-library';
 import * as FileSystem from 'expo-file-system';
+import { useA11y } from './A11yContext';
+import SelectOption from '../components/SelectOption';
+import QRCode from 'react-native-qrcode-svg';
 
 export default function AddEquipmentScreen() {
     // Estados del formulario
@@ -31,6 +35,11 @@ export default function AddEquipmentScreen() {
     const [isScanning, setIsScanning] = useState(false);
     const [qrCode, setQrCode] = useState('');
     const [isSharing, setIsSharing] = useState(false);
+    
+    // Permisos de Galería
+    const [mediaPermission, requestMediaPermission] = MediaLibrary.usePermissions();
+    const { theme, textScale, isHighContrast } = useA11y();
+    const qrRef = useRef();
 
     // Función principal para guardar los datos en Firestore
     const handleSave = async () => {
@@ -65,6 +74,8 @@ export default function AddEquipmentScreen() {
                 estado: status,
                 cantidad: parseInt(quantity, 10),
                 qrCode: qrCode, // Guarda el código escaneado (si lo hay)
+                ownerId: auth.currentUser.uid, // <-- Asigna el dueño del equipo
+                disponibilidad: 'Disponible', // Atributo inicial para módulo de préstamos
                 fechaRegistro: new Date()
             });
 
@@ -103,28 +114,57 @@ export default function AddEquipmentScreen() {
     };
 
     // Descargar y compartir el QR
-    const handleShareQR = async () => {
-        try {
-            setIsSharing(true);
-            const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=${qrCode}`;
-            const fileUri = FileSystem.documentDirectory + `QR-${qrCode}.png`;
-            
-            // Descargar imagen temporal
-            const { uri } = await FileSystem.downloadAsync(qrUrl, fileUri);
-            
-            if (await Sharing.isAvailableAsync()) {
-                await Sharing.shareAsync(uri, {
-                    mimeType: 'image/png',
-                    dialogTitle: 'Imprimir/Compartir Código QR',
-                });
-            } else {
-                Alert.alert("Error", "El uso compartido no está disponible en este dispositivo.");
+    const handleShareQR = () => {
+        if (!qrRef.current) return;
+        setIsSharing(true);
+        
+        qrRef.current.toDataURL(async (data) => {
+            try {
+                const fileUri = FileSystem.documentDirectory + `QR-${qrCode}.png`;
+                
+                // Guardar la imagen base64 localmente
+                await FileSystem.writeAsStringAsync(fileUri, data, { encoding: FileSystem.EncodingType.Base64 });
+                
+                Alert.alert(
+                    "Código QR Listo",
+                    "¿Qué deseas hacer con el código QR generado?",
+                    [
+                        {
+                            text: "Guardar en Galería",
+                            onPress: async () => {
+                                if (mediaPermission?.status !== 'granted') {
+                                    const p = await requestMediaPermission();
+                                    if (!p.granted) {
+                                        Alert.alert("Permiso denegado", "Necesitamos acceso para guardar la imagen.");
+                                        return;
+                                    }
+                                }
+                                await MediaLibrary.saveToLibraryAsync(fileUri);
+                                Alert.alert("¡Guardado!", "El código QR se ha guardado en tus fotos.");
+                            }
+                        },
+                        {
+                            text: "Compartir...",
+                            onPress: async () => {
+                                if (await Sharing.isAvailableAsync()) {
+                                    await Sharing.shareAsync(fileUri, {
+                                        mimeType: 'image/png',
+                                        dialogTitle: 'Imprimir/Compartir Código QR',
+                                    });
+                                } else {
+                                    Alert.alert("Error", "El uso compartido no está disponible.");
+                                }
+                            }
+                        },
+                        { text: "Cancelar", style: "cancel" }
+                    ]
+                );
+            } catch (error) {
+                Alert.alert("Error", "No se pudo preparar el código QR para compartir.");
+            } finally {
+                setIsSharing(false);
             }
-        } catch (error) {
-            Alert.alert("Error", "No se pudo preparar el código QR para compartir.");
-        } finally {
-            setIsSharing(false);
-        }
+        });
     };
 
     // Evento al detectar un código
@@ -134,99 +174,74 @@ export default function AddEquipmentScreen() {
         Alert.alert('Código Vinculado', `Se ha asociado el código exitosamente.`);
     };
 
-    // Componente auxiliar para elegir el estado (Nuevo, Usado, Dañado) como botones (Clean UI)
-    const StatusOption = ({ label }) => {
-        const isSelected = status === label;
-        return (
-            <TouchableOpacity 
-                style={[styles.statusOption, isSelected && styles.statusOptionSelected]}
-                onPress={() => setStatus(label)}
-            >
-                <Text style={[styles.statusText, isSelected && styles.statusTextSelected]}>
-                    {label}
-                </Text>
-            </TouchableOpacity>
-        );
-    };
-
-    // Componente auxiliar para elegir Categoría reciclando los mismos estilos (DRY principle)
-    const CategoryOption = ({ label }) => {
-        const isSelected = category === label;
-        return (
-            <TouchableOpacity 
-                style={[styles.statusOption, isSelected && styles.statusOptionSelected]}
-                onPress={() => setCategory(label)}
-            >
-                <Text style={[styles.statusText, isSelected && styles.statusTextSelected]}>{label}</Text>
-            </TouchableOpacity>
-        );
-    };
-
     return (
         <KeyboardAvoidingView 
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            style={styles.container}
+            style={[styles.container, { backgroundColor: theme.bg }]}
         >
             <ScrollView contentContainerStyle={styles.scrollContainer} keyboardShouldPersistTaps="handled">
-                <Text style={styles.headerTitle}>Ingreso a Bodega</Text>
-                <Text style={styles.subtitle}>Añade un nuevo artículo y genérale un código QR.</Text>
+                <Text style={[styles.headerTitle, { color: theme.textMain, fontSize: 28 * textScale, fontFamily: theme.font }]}>Ingreso a Bodega</Text>
+                <Text style={[styles.subtitle, { color: theme.textSub, fontSize: 16 * textScale, fontFamily: theme.font }]}>Añade un nuevo artículo y genérale un código QR.</Text>
 
                 {/* Campo: Nombre del artículo */}
                 <View style={styles.inputGroup}>
-                    <Text style={styles.label}>Nombre del artículo</Text>
+                    <Text style={[styles.label, { color: theme.textMain, fontFamily: theme.font }]}>Nombre del artículo</Text>
                     <TextInput 
-                        style={styles.textInput}
+                        style={[styles.textInput, { backgroundColor: theme.card, color: theme.textMain, borderColor: theme.border, fontFamily: theme.font }]}
                         placeholder="Ej: Tienda de campaña 4 personas"
                         value={name}
                         onChangeText={setName}
-                        placeholderTextColor="#9ca3af"
+                        placeholderTextColor={theme.textSub}
                     />
                 </View>
 
                 {/* Campo: Categoría - Refactorizado a UI Selector para consistencia en la BD */}
                 <View style={styles.inputGroup}>
-                    <Text style={styles.label}>Categoría</Text>
+                    <Text style={[styles.label, { color: theme.textMain, fontFamily: theme.font }]}>Categoría</Text>
                     <View style={styles.statusRow}>
-                        <CategoryOption label="Campamento" />
-                        <CategoryOption label="Cocina" />
-                        <CategoryOption label="Botiquín" />
+                        <SelectOption label="Campamento" currentValue={category} onSelect={setCategory} />
+                        <SelectOption label="Cocina" currentValue={category} onSelect={setCategory} />
+                        <SelectOption label="Botiquín" currentValue={category} onSelect={setCategory} />
                     </View>
                 </View>
 
                 {/* Campo: Cantidad */}
                 <View style={styles.inputGroup}>
-                    <Text style={styles.label}>Cantidad</Text>
+                    <Text style={[styles.label, { color: theme.textMain, fontFamily: theme.font }]}>Cantidad</Text>
                     <TextInput 
-                        style={styles.textInput}
+                        style={[styles.textInput, { backgroundColor: theme.card, color: theme.textMain, borderColor: theme.border, fontFamily: theme.font }]}
                         placeholder="Ej: 2"
                         keyboardType="numeric"
                         value={quantity}
                         onChangeText={setQuantity}
-                        placeholderTextColor="#9ca3af"
+                        placeholderTextColor={theme.textSub}
                     />
                 </View>
 
                 {/* Campo: Estado */}
                 <View style={styles.inputGroup}>
-                    <Text style={styles.label}>Estado del artículo</Text>
+                    <Text style={[styles.label, { color: theme.textMain, fontFamily: theme.font }]}>Estado del artículo</Text>
                     <View style={styles.statusRow}>
-                        <StatusOption label="Nuevo" />
-                        <StatusOption label="Usado" />
-                        <StatusOption label="Dañado" />
+                        <SelectOption label="Nuevo" currentValue={status} onSelect={setStatus} />
+                        <SelectOption label="Usado" currentValue={status} onSelect={setStatus} />
+                        <SelectOption label="Dañado" currentValue={status} onSelect={setStatus} />
                     </View>
                 </View>
 
                 {/* Botón QR */}
                 <View style={styles.inputGroup}>
-                    <Text style={styles.label}>Código QR/Barras</Text>
+                    <Text style={[styles.label, { color: theme.textMain, fontFamily: theme.font }]}>Código QR/Barras</Text>
                     {qrCode ? (
-                        <View style={styles.qrResultContainer}>
-                            <Image 
-                                source={{ uri: `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${qrCode}` }} 
-                                style={styles.qrImage} 
-                            />
+                        <View style={[styles.qrResultContainer, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                            <View style={styles.qrCodeWrapper}>
+                                <QRCode
+                                    value={qrCode}
+                                    size={150}
+                                    getRef={(c) => (qrRef.current = c)}
+                                />
+                            </View>
                             <View style={styles.qrSuccessBox}>
-                                <Text style={styles.qrSuccessText}>✅ Código: {qrCode}</Text>
+                                <Text style={[styles.qrSuccessText, { color: theme.success, fontFamily: theme.font }]}>✅ Código: {qrCode}</Text>
                                 <TouchableOpacity onPress={() => setQrCode('')}><Text style={styles.clearQrText}>Quitar</Text></TouchableOpacity>
                             </View>
                             <View style={styles.qrSuccessBoxShare}>
@@ -237,10 +252,10 @@ export default function AddEquipmentScreen() {
                         </View>
                     ) : (
                         <View style={styles.qrActionButtons}>
-                            <TouchableOpacity style={styles.qrButton} onPress={handleScanQR}>
+                            <TouchableOpacity style={[styles.qrButton, { backgroundColor: theme.card, borderColor: theme.primary }]} onPress={handleScanQR}>
                                 <Text style={styles.qrButtonText}>📷 Escanear Existente</Text>
                             </TouchableOpacity>
-                            <TouchableOpacity style={styles.generateButton} onPress={handleGenerateQR}>
+                            <TouchableOpacity style={[styles.generateButton, { backgroundColor: theme.card, borderColor: theme.secondary }]} onPress={handleGenerateQR}>
                                 <Text style={styles.generateButtonText}>✨ Generar Nuevo QR</Text>
                             </TouchableOpacity>
                         </View>
@@ -248,8 +263,8 @@ export default function AddEquipmentScreen() {
                 </View>
 
                 {/* Botón Guardar */}
-                <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-                    <Text style={styles.saveButtonText}>Guardar Equipo</Text>
+                <TouchableOpacity style={[styles.saveButton, { backgroundColor: theme.success }]} onPress={handleSave}>
+                    <Text style={[styles.saveButtonText, { fontFamily: theme.font }]}>Guardar Equipo</Text>
                 </TouchableOpacity>
 
             </ScrollView>
@@ -330,34 +345,6 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         marginTop: 4,
     },
-    statusOption: {
-        flex: 1,
-        borderWidth: 1,
-        borderColor: '#e5e7eb',
-        backgroundColor: '#ffffff',
-        paddingVertical: 14,
-        borderRadius: 10,
-        marginHorizontal: 3,
-        alignItems: 'center',
-         // Sombras sutiles
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.05,
-        shadowRadius: 2,
-        elevation: 1,
-    },
-    statusOptionSelected: {
-        backgroundColor: '#6366f1', // Tono indigo muy Scout/Tech
-        borderColor: '#6366f1',
-    },
-    statusText: {
-        color: '#6b7280',
-        fontWeight: '600',
-        fontSize: 14,
-    },
-    statusTextSelected: {
-        color: '#ffffff',
-    },
     qrActionButtons: {
         flexDirection: 'row',
         justifyContent: 'space-between',
@@ -405,6 +392,9 @@ const styles = StyleSheet.create({
     qrImage: {
         width: 150,
         height: 150,
+        marginBottom: 16,
+    },
+    qrCodeWrapper: {
         marginBottom: 16,
     },
     qrSuccessBox: {

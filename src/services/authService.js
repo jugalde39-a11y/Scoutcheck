@@ -18,8 +18,10 @@ import { auth, db } from '../../firebaseConfig';
  * @param {string} password 
  * @param {string} nombre 
  * @param {string} perfil Ej: "Dirigente", "Rover", "Tropa"
+ * @param {string} telefono 
+ * @param {string} grupoScout 
  */
-export const registrarUsuario = async (email, password, nombre, perfil) => {
+export const registrarUsuario = async (email, password, nombre, perfil, telefono, grupoScout) => {
     try {
         // 1. Crear usuario en Firebase Authentication
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
@@ -32,6 +34,8 @@ export const registrarUsuario = async (email, password, nombre, perfil) => {
             nombre: nombre,
             perfil: perfil,
             email: email,
+            telefono: telefono || "",
+            grupoScout: grupoScout || "",
             fotoUrl: "", // Por defecto vacío
             fechaRegistro: serverTimestamp()
         };

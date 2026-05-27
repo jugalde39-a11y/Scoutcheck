@@ -10,15 +10,23 @@ import {
     ActivityIndicator,
     SafeAreaView
 } from 'react-native';
-import { collection, onSnapshot, deleteDoc, doc } from 'firebase/firestore';
+import { collection, onSnapshot, deleteDoc, doc, query, where, limit } from 'firebase/firestore';
 import { db, auth } from '../../firebaseConfig';
 import { obtenerDatosUsuario } from '../services/authService';
+import { useA11y } from './A11yContext';
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
 
 export default function InventoryScreen({ navigation }) {
     const [equipment, setEquipment] = useState([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [loading, setLoading] = useState(true);
     const [userProfile, setUserProfile] = useState(null);
+    const [itemLimit, setItemLimit] = useState(20); // Paginación: Inicializa con 20 items
+    const [isFetchingMore, setIsFetchingMore] = useState(false);
+
+    // Consumiendo el estado global de accesibilidad
+    const { theme, textScale, isHighContrast } = useA11y();
 
     useEffect(() => {
         // Obtener el perfil del usuario actual
@@ -34,26 +42,38 @@ export default function InventoryScreen({ navigation }) {
         };
         fetchProfile();
 
-        // Referencia a la colección 'inventario'
+        // Referencia a la colección 'inventario' filtrada por el usuario actual
         const inventoryRef = collection(db, 'inventario');
+        const q = query(inventoryRef, where('ownerId', '==', auth.currentUser?.uid), limit(itemLimit));
         
-        // Suscribirse a los cambios en tiempo real
-        const unsubscribe = onSnapshot(inventoryRef, (snapshot) => {
+        // Suscribirse a los cambios en tiempo real (solo inventario personal)
+        const unsubscribe = onSnapshot(q, (snapshot) => {
             const items = snapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data()
             }));
             setEquipment(items);
             setLoading(false);
+            setIsFetchingMore(false);
         }, (error) => {
             console.error("Error al obtener inventario:", error);
             Alert.alert("Error", "Hubo un problema al cargar el inventario.");
             setLoading(false);
+            setIsFetchingMore(false);
         });
 
         // Limpiar suscripción al desmontar
         return () => unsubscribe();
-    }, []);
+    }, [itemLimit]); // El useEffect reacciona cuando el límite de items aumenta
+
+    // Función para cargar más items al llegar al final de la lista
+    const handleLoadMore = () => {
+        // Solo intentamos cargar más si la cantidad actual descargada alcanzó el límite
+        if (equipment.length >= itemLimit) {
+            setIsFetchingMore(true);
+            setItemLimit(prevLimit => prevLimit + 20); // Cargar los siguientes 20
+        }
+    };
 
     const handleDelete = (id) => {
         if (userProfile !== 'Dirigente' && userProfile !== 'Bodeguero') {
@@ -88,50 +108,97 @@ export default function InventoryScreen({ navigation }) {
         item.categoria?.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
+    // Generar Reporte PDF
+    const handleExportPDF = async () => {
+        const htmlContent = `
+            <html>
+                <head>
+                    <style>
+                        body { font-family: Helvetica, sans-serif; padding: 20px; }
+                        h1 { color: #00264d; text-align: center; }
+                        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+                        th { background-color: #f7f9fc; color: #00264d; }
+                        .prestado { color: #ef4444; font-weight: bold; }
+                    </style>
+                </head>
+                <body>
+                    <h1>Reporte de Inventario Scout</h1>
+                    <p>Generado el: ${new Date().toLocaleDateString()}</p>
+                    <table>
+                        <tr><th>Artículo</th><th>Categoría</th><th>Estado</th><th>Cant.</th><th>Disponibilidad</th></tr>
+                        ${filteredEquipment.map(item => `
+                            <tr>
+                                <td>${item.nombre || ''}</td><td>${item.categoria || ''}</td><td>${item.estado || ''}</td><td>${item.cantidad || 0}</td>
+                                <td class="${item.disponibilidad === 'Prestado' ? 'prestado' : ''}">
+                                    ${item.disponibilidad === 'Prestado' ? `Prestado a: ${item.prestadoA}` : 'Disponible'}
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </table>
+                </body>
+            </html>
+        `;
+        try {
+            const { uri } = await Print.printToFileAsync({ html: htmlContent });
+            await Sharing.shareAsync(uri, { dialogTitle: 'Compartir Reporte de Inventario' });
+        } catch (error) {
+            Alert.alert("Error", "No se pudo generar el reporte PDF.");
+        }
+    };
+
     const renderItem = ({ item }) => (
-        <View style={styles.card}>
+        <TouchableOpacity 
+            onPress={() => navigation.navigate('ItemDetail', { itemId: item.id, itemData: item })}
+            style={[styles.card, { backgroundColor: theme.card, shadowColor: isHighContrast ? theme.border : '#000' }]}
+        >
             <View style={styles.cardContent}>
-                <Text style={styles.itemName}>{item.nombre}</Text>
-                <Text style={styles.itemDetail}>Categoría: {item.categoria}</Text>
-                <Text style={styles.itemDetail}>Cantidad: {item.cantidad}</Text>
-                <Text style={styles.itemDetail}>Estado: {item.estado}</Text>
-                {item.qrCode && <Text style={styles.itemQr}>QR Vinculado: {item.qrCode}</Text>}
+                <Text style={[styles.itemName, { color: theme.textMain, fontSize: 18 * textScale, fontFamily: theme.font }]}>{item.nombre}</Text>
+                <Text style={[styles.itemDetail, { color: theme.textSub, fontSize: 14 * textScale, fontFamily: theme.font }]}>Categoría: {item.categoria}</Text>
+                <Text style={[styles.itemDetail, { color: theme.textSub, fontSize: 14 * textScale, fontFamily: theme.font }]}>Cantidad: {item.cantidad}</Text>
+                <Text style={[styles.itemDetail, { color: theme.textSub, fontSize: 14 * textScale, fontFamily: theme.font }]}>Estado: {item.estado}</Text>
+                
+                {item.disponibilidad === 'Prestado' && (
+                    <Text style={{ color: theme.danger, fontWeight: 'bold', fontSize: 13 * textScale, marginTop: 4 }}>
+                        🔴 PRESTADO A {item.prestadoA?.toUpperCase()}
+                    </Text>
+                )}
+                
+                {item.qrCode && <Text style={[styles.itemQr, { fontSize: 12 * textScale, fontFamily: theme.font }]}>QR Vinculado: {item.qrCode}</Text>}
             </View>
-            {(userProfile === 'Dirigente' || userProfile === 'Bodeguero') && (
-                <View style={styles.actionsContainer}>
-                    <TouchableOpacity style={styles.editButton} onPress={() => navigation.navigate('EditEquipment', { item })}>
-                        <Text style={styles.editButtonText}>Editar</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.deleteButton} onPress={() => handleDelete(item.id)}>
-                        <Text style={styles.deleteButtonText}>Eliminar</Text>
-                    </TouchableOpacity>
-                </View>
-            )}
-        </View>
+        </TouchableOpacity>
     );
 
     return (
-        <SafeAreaView style={styles.container}>
+        <SafeAreaView style={[styles.container, { backgroundColor: theme.bg }]}>
             <View style={styles.innerContainer}>
-                <Text style={styles.headerTitle}>Bodega Scout</Text>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, marginTop: 10 }}>
+                    <Text style={[styles.headerTitle, { color: theme.textMain, fontSize: 28 * textScale, fontFamily: theme.font, marginBottom: 0, marginTop: 0 }]}>Bodega Scout</Text>
+                    <TouchableOpacity onPress={handleExportPDF} style={{ backgroundColor: theme.primary, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 8, flexDirection: 'row', alignItems: 'center' }}>
+                        <Text style={{ color: '#fff', fontWeight: 'bold' }}>📄 PDF</Text>
+                    </TouchableOpacity>
+                </View>
                 <TextInput
-                    style={styles.searchInput}
+                    style={[styles.searchInput, { backgroundColor: theme.card, color: theme.textMain, borderColor: theme.border, fontFamily: theme.font }]}
                     placeholder="Buscar por nombre o categoria de equipo"
-                    placeholderTextColor="#9ca3af"
+                    placeholderTextColor={isHighContrast ? "#FFFF00" : "#9ca3af"}
                     value={searchQuery}
                     onChangeText={setSearchQuery}
                 />
                 
                 {loading ? (
-                    <ActivityIndicator size="large" color="#10b981" style={{ marginTop: 40 }} />
+                    <ActivityIndicator size="large" color={theme.textMain} style={{ marginTop: 40 }} />
                 ) : (
                     <FlatList
                         data={filteredEquipment}
                         keyExtractor={item => item.id}
                         renderItem={renderItem}
                         contentContainerStyle={styles.listContainer}
-                        ListEmptyComponent={<Text style={styles.emptyText}>No hay equipos que coincidan con la búsqueda.</Text>}
+                        ListEmptyComponent={<Text style={[styles.emptyText, { color: theme.textSub, fontSize: 16 * textScale, fontFamily: theme.font }]}>No hay equipos que coincidan con la búsqueda.</Text>}
                         showsVerticalScrollIndicator={false}
+                        onEndReached={handleLoadMore}
+                        onEndReachedThreshold={0.5} // Ejecutar cuando esté al 50% de llegar al final
+                        ListFooterComponent={isFetchingMore ? <ActivityIndicator size="small" color={theme.primary} style={{ marginVertical: 20 }} /> : null}
                     />
                 )}
             </View>

@@ -2,11 +2,13 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, SafeAreaView, Alert, ActivityIndicator } from 'react-native';
 import ScoutLogo from '../components/ScoutLogo';
 import { loginUsuario, recuperarPassword } from '../services/authService';
+import { useA11y } from './A11yContext';
 
 const LoginScreen = ({ navigation }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const { theme, textScale, isHighContrast } = useA11y();
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -43,22 +45,22 @@ const LoginScreen = ({ navigation }) => {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.bg }]}>
       <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <View style={styles.header}>
           <ScoutLogo size={80} />
-          <Text style={styles.title}>ScoutCheck</Text>
-          <Text style={styles.subtitle}>Gestión de Inventario</Text>
+          <Text style={[styles.title, { color: theme.textMain, fontSize: 28 * textScale, fontFamily: theme.font }]}>ScoutCheck</Text>
+          <Text style={[styles.subtitle, { color: theme.textSub, fontSize: 16 * textScale, fontFamily: theme.font }]}>Gestión de Inventario</Text>
         </View>
 
         <View style={styles.form}>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: theme.card, color: theme.textMain, borderColor: theme.border, fontFamily: theme.font }]}
             placeholder="Correo electrónico"
-            placeholderTextColor="#8a9eb3"
+            placeholderTextColor={theme.textSub}
             value={email}
             onChangeText={setEmail}
             keyboardType="email-address"
@@ -66,23 +68,23 @@ const LoginScreen = ({ navigation }) => {
           />
 
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: theme.card, color: theme.textMain, borderColor: theme.border, fontFamily: theme.font }]}
             placeholder="Contraseña"
-            placeholderTextColor="#8a9eb3"
+            placeholderTextColor={theme.textSub}
             value={password}
             onChangeText={setPassword}
             secureTextEntry
           />
 
           <TouchableOpacity
-            style={styles.loginButton}
+            style={[styles.loginButton, { backgroundColor: theme.primary }]}
             onPress={handleLogin}
             disabled={loading}
           >
             {loading ? (
               <ActivityIndicator color="#ffffff" />
             ) : (
-              <Text style={styles.loginButtonText}>Iniciar Sesión</Text>
+              <Text style={[styles.loginButtonText, { fontSize: 16 * textScale, fontFamily: theme.font }]}>Iniciar Sesión</Text>
             )}
           </TouchableOpacity>
 
@@ -90,14 +92,14 @@ const LoginScreen = ({ navigation }) => {
             style={styles.forgotPasswordLink}
             onPress={handleResetPassword}
           >
-            <Text style={styles.forgotPasswordText}>¿Olvidaste tu contraseña?</Text>
+            <Text style={[styles.forgotPasswordText, { color: theme.primary, fontSize: 14 * textScale, fontFamily: theme.font }]}>¿Olvidaste tu contraseña?</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             style={styles.registerLink}
             onPress={() => navigation.navigate('Register')}
           >
-            <Text style={styles.registerText}>¿No tienes cuenta? <Text style={styles.registerTextBold}>Regístrate</Text></Text>
+            <Text style={[styles.registerText, { color: theme.textSub, fontSize: 14 * textScale, fontFamily: theme.font }]}>¿No tienes cuenta? <Text style={[styles.registerTextBold, { color: theme.primary }]}>Regístrate</Text></Text>
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>

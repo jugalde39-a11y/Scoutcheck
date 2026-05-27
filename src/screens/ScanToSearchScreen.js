@@ -38,46 +38,8 @@ export default function ScanToSearchScreen({ navigation }) {
                 const itemDoc = querySnapshot.docs[0];
                 const itemData = itemDoc.data();
                 
-                Alert.alert(
-                    "✅ Equipo Encontrado",
-                    `Nombre: ${itemData.nombre}\nCategoría: ${itemData.categoria}\nEstado: ${itemData.estado}\nCantidad: ${itemData.cantidad}`,
-                    [
-                        { 
-                            text: "Marcar Disponible", 
-                            onPress: async () => {
-                                try {
-                                    setIsProcessing(true);
-                                    // Volver a estado utilizable y quitar asignaciones si hubieran a futuro
-                                    await updateDoc(doc(db, 'inventario', itemDoc.id), { estado: 'Usado' });
-                                    Alert.alert("Actualizado", "El equipo ha vuelto a la bodega.");
-                                    navigation.goBack();
-                                } catch (error) {
-                                    console.error("Error al actualizar:", error);
-                                    Alert.alert("Error", "No se pudo actualizar el estado.");
-                                    setScanned(false);
-                                    setIsProcessing(false);
-                                }
-                            } 
-                        },
-                        { 
-                            text: "Marcar como Dañado", 
-                            onPress: async () => {
-                                try {
-                                    setIsProcessing(true);
-                                    await updateDoc(doc(db, 'inventario', itemDoc.id), { estado: 'Dañado' });
-                                    Alert.alert("Actualizado", "El equipo ha sido marcado como Dañado.");
-                                    navigation.goBack();
-                                } catch (error) {
-                                    console.error("Error al actualizar:", error);
-                                    Alert.alert("Error", "No se pudo actualizar el estado.");
-                                    setScanned(false);
-                                    setIsProcessing(false);
-                                }
-                            } 
-                        },
-                        { text: "Cerrar", style: 'cancel', onPress: () => navigation.goBack() }
-                    ]
-                );
+                // En lugar de una simple alerta, redirigimos a la Ficha Técnica para gestionar todo desde allí
+                navigation.replace('ItemDetail', { itemId: itemDoc.id, itemData: itemData });
             } else {
                 Alert.alert(
                     "❌ No Encontrado",
